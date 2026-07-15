@@ -1,10 +1,9 @@
 import json
-from pathlib import Path
 import unittest
+from pathlib import Path
 
-from blender_viz.data import demo_trajectory, load_gates, load_trajectory
 from blender_viz.cli import find_blender
-
+from blender_viz.data import demo_trajectory, load_gates, load_trajectory
 
 ROOT = Path(__file__).parents[1]
 
@@ -28,6 +27,7 @@ class DataTests(unittest.TestCase):
 
     def test_csv_aliases_and_quaternion(self):
         import tempfile
+
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "rollout.csv"
             path.write_text("px,py,pz,qw,qx,qy,qz,t\n0,1,2,1,0,0,0,0\n1,2,3,1,0,0,0,.1\n")
@@ -38,6 +38,7 @@ class DataTests(unittest.TestCase):
 
     def test_json_list(self):
         import tempfile
+
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "rollout.json"
             path.write_text(json.dumps([[0, 0, 1], [1, 0, 1]]))

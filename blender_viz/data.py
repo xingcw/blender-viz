@@ -32,14 +32,17 @@ def load_trajectory(path: Path) -> dict[str, Any]:
             raise ValueError(f"trajectory is empty: {path}")
         positions, quaternions, times, speeds = [], [], [], []
         for row in rows:
-            pos = (_float_row(row, ("x", "y", "z")) or
-                   _float_row(row, ("px", "py", "pz")) or
-                   _float_row(row, ("pos_x", "pos_y", "pos_z")))
+            pos = (
+                _float_row(row, ("x", "y", "z"))
+                or _float_row(row, ("px", "py", "pz"))
+                or _float_row(row, ("pos_x", "pos_y", "pos_z"))
+            )
             if pos is None:
                 raise ValueError("CSV needs x,y,z (or px,py,pz / pos_x,pos_y,pos_z) columns")
             positions.append(pos)
-            quat = (_float_row(row, ("qw", "qx", "qy", "qz")) or
-                    _float_row(row, ("quat_w", "quat_x", "quat_y", "quat_z")))
+            quat = _float_row(row, ("qw", "qx", "qy", "qz")) or _float_row(
+                row, ("quat_w", "quat_x", "quat_y", "quat_z")
+            )
             if quat is not None:
                 quaternions.append(quat)
             if row.get("time", row.get("t", "")) != "":
@@ -47,14 +50,18 @@ def load_trajectory(path: Path) -> dict[str, Any]:
             if row.get("speed", "") != "":
                 speeds.append(float(row["speed"]))
         result: dict[str, Any] = {"positions": positions}
-        if len(quaternions) == len(positions): result["quaternions"] = quaternions
-        if len(times) == len(positions): result["times"] = times
-        if len(speeds) == len(positions): result["speeds"] = speeds
+        if len(quaternions) == len(positions):
+            result["quaternions"] = quaternions
+        if len(times) == len(positions):
+            result["times"] = times
+        if len(speeds) == len(positions):
+            result["speeds"] = speeds
         return validate_trajectory(result)
 
     if suffix == ".json":
         raw = json.loads(path.read_text())
-        if isinstance(raw, list): raw = {"positions": raw}
+        if isinstance(raw, list):
+            raw = {"positions": raw}
         return validate_trajectory(raw)
 
     if suffix in {".npy", ".npz"}:
@@ -71,14 +78,19 @@ def load_trajectory(path: Path) -> dict[str, Any]:
         else:
             keys = set(raw.files)
             pos_key = next((k for k in ("positions", "position", "pos", "qpos") if k in keys), None)
-            if pos_key is None: raise ValueError(f"NPZ has no position array; found {sorted(keys)}")
+            if pos_key is None:
+                raise ValueError(f"NPZ has no position array; found {sorted(keys)}")
             arr = raw[pos_key]
             result = {"positions": arr[:, :3].tolist()}
             quat_key = next((k for k in ("quaternions", "quaternion", "orientation", "quat") if k in keys), None)
-            if quat_key: result["quaternions"] = raw[quat_key].tolist()
-            elif pos_key == "qpos" and arr.shape[1] >= 7: result["quaternions"] = arr[:, 3:7].tolist()
+            if quat_key:
+                result["quaternions"] = raw[quat_key].tolist()
+            elif pos_key == "qpos" and arr.shape[1] >= 7:
+                result["quaternions"] = arr[:, 3:7].tolist()
             for source, target in (("time", "times"), ("times", "times"), ("speed", "speeds"), ("speeds", "speeds")):
-                if source in keys: result[target] = raw[source].tolist(); break
+                if source in keys:
+                    result[target] = raw[source].tolist()
+                    break
             raw.close()
         return validate_trajectory(result)
     raise ValueError(f"unsupported trajectory format '{suffix}'; use CSV, JSON, NPY, or NPZ")
@@ -95,7 +107,8 @@ def validate_trajectory(data: dict[str, Any]) -> dict[str, Any]:
     for key in ("quaternions", "times", "speeds"):
         if key in data:
             values = data[key]
-            if len(values) != len(clean): raise ValueError(f"{key} length must match positions")
+            if len(values) != len(clean):
+                raise ValueError(f"{key} length must match positions")
             result[key] = values
     return result
 
@@ -105,12 +118,13 @@ def load_gates(path: Path) -> list[dict[str, Any]]:
     root = ET.parse(path).getroot()
     gates = []
     for body in root.findall(".//body"):
-        if not body.get("name", "").startswith("gate_"): continue
+        if not body.get("name", "").startswith("gate_"):
+            continue
         pos = [float(v) for v in body.get("pos", "0 0 0").split()]
         euler_deg = [float(v) for v in body.get("euler", "0 0 0").split()]
-        gates.append({"name": body.get("name"), "position": pos,
-                      "rotation": [math.radians(v) for v in euler_deg]})
-    if not gates: raise ValueError(f"no gate_* bodies found in {path}")
+        gates.append({"name": body.get("name"), "position": pos, "rotation": [math.radians(v) for v in euler_deg]})
+    if not gates:
+        raise ValueError(f"no gate_* bodies found in {path}")
     return gates
 
 
@@ -118,7 +132,8 @@ def demo_trajectory(gates: list[dict[str, Any]], samples_per_leg: int = 28) -> d
     """Create a smooth closed demonstration route through all gate centers."""
     points = [gate["position"] for gate in gates]
     if len(points) == 1:
-        p = points[0]; points = [[p[0], p[1] - 2, p[2]], p, [p[0], p[1] + 2, p[2]]]
+        p = points[0]
+        points = [[p[0], p[1] - 2, p[2]], p, [p[0], p[1] + 2, p[2]]]
     closed = len(points) > 2
     result = []
     count = len(points) if closed else len(points) - 1
@@ -127,9 +142,19 @@ def demo_trajectory(gates: list[dict[str, Any]], samples_per_leg: int = 28) -> d
         p1, p2 = points[i], points[(i + 1) % len(points)]
         p3 = points[(i + 2) % len(points)] if closed else points[min(len(points) - 1, i + 2)]
         for j in range(samples_per_leg):
-            t = j / samples_per_leg; t2, t3 = t * t, t * t * t
-            result.append([0.5 * ((2*p1[k]) + (-p0[k]+p2[k])*t +
-                          (2*p0[k]-5*p1[k]+4*p2[k]-p3[k])*t2 +
-                          (-p0[k]+3*p1[k]-3*p2[k]+p3[k])*t3) for k in range(3)])
+            t = j / samples_per_leg
+            t2, t3 = t * t, t * t * t
+            result.append(
+                [
+                    0.5
+                    * (
+                        (2 * p1[k])
+                        + (-p0[k] + p2[k]) * t
+                        + (2 * p0[k] - 5 * p1[k] + 4 * p2[k] - p3[k]) * t2
+                        + (-p0[k] + 3 * p1[k] - 3 * p2[k] + p3[k]) * t3
+                    )
+                    for k in range(3)
+                ]
+            )
     result.append(points[0] if closed else points[-1])
     return {"positions": result}

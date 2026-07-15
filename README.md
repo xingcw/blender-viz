@@ -67,6 +67,16 @@ uv run drone-viz --track circle4 --trajectory rollout.csv --dry-run
 uv run python -m unittest discover -s tests
 ```
 
+## Code style
+
+Ruff enforces formatting, import order, basic correctness checks, and a maximum
+line length of 120 characters:
+
+```bash
+uv run ruff format blender_viz tests
+uv run ruff check blender_viz tests
+```
+
 The generated visual language intentionally echoes the supplied reference while
 using a richer 3D treatment: a cyan-to-magenta velocity ribbon, amber direction
 chevrons, realistic competition gates, reflective arena markings, colored rim
